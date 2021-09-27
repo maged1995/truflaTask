@@ -5,6 +5,9 @@ class ParserMain:
         self.file_name = file_name
         self.time_stamp = time.time()
 
+    def enrich_data(self, **kwargs):
+        pass
+
     def pre_process(self):
         pass
 

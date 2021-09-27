@@ -6,30 +6,36 @@ import json
 import requests
 
 class XMLParser(ParserMain):
+    def enrich_data(self):
+        self.customer_data
+        vin = self.customer_data["Units"]["Auto"]["Vehicle"][0]["VinNumber"]
+        model_year = self.customer_data["Units"]["Auto"]["Vehicle"][0]["ModelYear"]
+        response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
+        extra_info = response.json()['Results'][0]
+
+        self.customer_data["Units"]["Auto"]["Vehicle"][0].update({
+            "model": extra_info['Model'],
+            "manufacturer": extra_info['Manufacturer'],
+            "plant_country": extra_info['PlantCountry'],
+            "vehicle_type": extra_info['VehicleType']
+        })
+
     def pre_process(self):
         with open(self.file_name, mode='r') as xml_file:
             data_dict = xmltodict.parse(xml_file.read(), encoding='utf-8')
             xml_file.close()
-            customer_data = data_dict["Insurance"]["Transaction"]["Customer"]
+            self.customer_data = data_dict["Insurance"]["Transaction"]["Customer"]
             customer_exclude_data = {"Units"}
             
-            vin = customer_data["Units"]["Auto"]["Vehicle"][0]["VinNumber"]
-            model_year = customer_data["Units"]["Auto"]["Vehicle"][0]["ModelYear"]
-            response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
-            extra_info = response.json()['Results'][0]
-
-            customer_data["Units"]["Auto"]["Vehicle"][0]["model"] = extra_info['Model']
-            customer_data["Units"]["Auto"]["Vehicle"][0]["manufacturer"] = extra_info['Manufacturer']
-            customer_data["Units"]["Auto"]["Vehicle"][0]["plant_country"] = extra_info['PlantCountry']
-            customer_data["Units"]["Auto"]["Vehicle"][0]["vehicle_type"] = extra_info['VehicleType']
+            self.enrich_data()
 
             json_res = {
                 "file_name": basename(self.file_name),
                 "transaction": [
                     {
                         "date": data_dict["Insurance"]["Transaction"]["Date"],
-                        "customer": without_keys(customer_data, customer_exclude_data),
-                        "Vehicles": customer_data["Units"]["Auto"]["Vehicle"]
+                        "customer": without_keys(self.customer_data, customer_exclude_data),
+                        "Vehicles": self.customer_data["Units"]["Auto"]["Vehicle"]
                     }
                 ]
             }

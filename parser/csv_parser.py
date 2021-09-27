@@ -9,6 +9,19 @@ class CSVParser(ParserMain):
         ParserMain.__init__(self, file_name)
         self.file_name2 = file_name2
 
+    def enrich_data(self, row):
+        vin = row["vin_number"]
+        model_year = row["model_year"]
+        response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
+        extra_info = response.json()['Results'][0]
+
+        self.vehicle_data.update({
+            "model": extra_info['Model'],
+            "manufacturer": extra_info['Manufacturer'],
+            "plant_country": extra_info['PlantCountry'],
+            "vehicle_type": extra_info['VehicleType'] 
+        }) 
+
     def pre_process(self):
         data1 = pd.read_csv(self.file_name)
         data2 = pd.read_csv(self.file_name2)
@@ -26,24 +39,20 @@ class CSVParser(ParserMain):
         for index, row in full_data.iterrows():
             # since "index" is the index of the records in the csv file, it is not recommended for use after sorting
             i += 1
+            
+            self.vehicle_data = {
+                "id": row["id"],
+                "make": row["make"],
+                "vin_number": row["vin_number"],
+                "model_year": row["model_year"],
+            }
 
-            vin = row["vin_number"]
-            model_year = row["model_year"]
-            response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
-            extra_info = response.json()['Results'][0]
+            self.enrich_data(row)
+
             
             if prev_owner_id == row["owner_id"]:
                 nth_car += 1
-                json_res["transaction"][i-nth_car]["vehicles"].append({
-                    "id": row["id"],
-                    "make": row["make"],
-                    "vin_number": row["vin_number"],
-                    "model_year": row["model_year"],
-                    "model": extra_info['Model'],
-                    "manufacturer": extra_info['Manufacturer'],
-                    "plant_country": extra_info['PlantCountry'],
-                    "vehicle_type": extra_info['VehicleType']
-                })
+                json_res["transaction"][i-nth_car]["vehicles"].append(self.vehicle_data)
             else:
                 if nth_car > 0: nth_car = 0
                 prev_owner_id = row["owner_id"]
@@ -56,16 +65,7 @@ class CSVParser(ParserMain):
                         "phone": row['phone']
                     },
                     "vehicles": [
-                        {
-                            "id": row["id"],
-                            "make": row["make"],
-                            "vin_number": row["vin_number"],
-                            "model_year": row["model_year"],
-                            "model": extra_info['Model'],
-                            "manufacturer": extra_info['Manufacturer'],
-                            "plant_country": extra_info['PlantCountry'],
-                            "vehicle_type": extra_info['VehicleType']
-                        }
+                        self.vehicle_data
                     ]
                 })
         self.json_data = json.dumps(json_res, indent=3, ensure_ascii=False)
