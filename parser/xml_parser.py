@@ -1,6 +1,6 @@
 from posixpath import basename, splitext
 from .parser_main import ParserMain
-from .utils import without_keys, assert_xml_format
+from .utils import without_keys, assert_xml_format, keys_snake
 import xmltodict
 import json
 import requests
@@ -12,33 +12,36 @@ class XMLParser(ParserMain):
             self.errors.add(f"{file_name} is not supported, either fix it or submit another file")
 
     def enrich_data(self):
-        self.customer_data
-        vin = self.customer_data["Units"]["Auto"]["Vehicle"][0]["VinNumber"]
-        model_year = self.customer_data["Units"]["Auto"]["Vehicle"][0]["ModelYear"]
+        i=-1
+        for cd in self.customer_data["units"]["auto"]["vehicle"]:
+            i+=1
+            vin = cd["vin_number"]
+            model_year = cd["model_year"]
 
-        try:
-            response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
-            extra_info = response.json()['Results'][0]
-            if response.status_code == 200:
-                self.customer_data["Units"]["Auto"]["Vehicle"][0].update({
-                    "model": extra_info['Model'],
-                    "manufacturer": extra_info['Manufacturer'],
-                    "plant_country": extra_info['PlantCountry'],
-                    "vehicle_type": extra_info['VehicleType']
-                })
-            else:
-                self.exceptions.append("wrong or unavailable vehicle data")
-        except requests.exceptions.ConnectionError:
-            self.exceptions.add('No Internet Connection for Data enrichment')
-        except:
-            self.exceptions.add('Unknown Error Occurred. Contact the developer')
+            try:
+                response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
+                extra_info = response.json()['Results'][0]
+                if response.status_code == 200:
+                    self.customer_data["units"]["auto"]["vehicle"][i].update({
+                        "model": extra_info['Model'],
+                        "manufacturer": extra_info['Manufacturer'],
+                        "plant_country": extra_info['PlantCountry'],
+                        "vehicle_type": extra_info['VehicleType']
+                    })
+                else:
+                    self.exceptions.append("wrong or unavailable vehicle data")
+            except requests.exceptions.ConnectionError:
+                self.exceptions.add('No Internet Connection for Data enrichment')
+            except:
+                self.exceptions.add('Unknown Error Occurred. Contact the developer')
 
     def pre_process(self):
         with open(self.file_name, mode='r') as xml_file:
             data_dict = xmltodict.parse(xml_file.read(), encoding='utf-8')
             xml_file.close()
-            self.customer_data = data_dict["Insurance"]["Transaction"]["Customer"]
-            customer_exclude_data = {"Units"}
+            data_dict = keys_snake(data_dict)
+            self.customer_data = data_dict["insurance"]["transaction"]["customer"]
+            customer_exclude_data = {"units"}
             
             self.enrich_data()
 
@@ -46,9 +49,9 @@ class XMLParser(ParserMain):
                 "file_name": basename(self.file_name),
                 "transaction": [
                     {
-                        "date": data_dict["Insurance"]["Transaction"]["Date"],
+                        "date": data_dict["insurance"]["transaction"]["date"],
                         "customer": without_keys(self.customer_data, customer_exclude_data),
-                        "Vehicles": self.customer_data["Units"]["Auto"]["Vehicle"]
+                        "vehicles": self.customer_data["units"]["auto"]["vehicle"]
                     }
                 ]
             }
