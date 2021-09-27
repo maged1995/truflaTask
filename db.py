@@ -22,7 +22,9 @@ elif command == 'drop-user':
 elif command == 'drop-db':
     mydb.command("dropDatabase")
 elif command == 'list':
-    mycol = mydb[db_args[0]]
-    for x in mycol.find():
-        print(x['_id'], json.dumps(without_keys(x, {"_id"}), indent=3, ensure_ascii=False))
-    
+    if db_args[0]:
+        mycol = mydb[db_args[0]]
+        for x in mycol.find():
+            print(x['_id'], json.dumps(without_keys(x, {"_id"}), indent=3, ensure_ascii=False))
+    else:
+        print('please select to format')
