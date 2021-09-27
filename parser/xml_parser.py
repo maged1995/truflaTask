@@ -1,11 +1,16 @@
 from posixpath import basename, splitext
 from .parser_main import ParserMain
-from .utils import without_keys
+from .utils import without_keys, assert_xml_format
 import xmltodict
 import json
 import requests
 
 class XMLParser(ParserMain):
+    def __init__(self, file_name):
+        ParserMain.__init__(self, file_name)
+        if not assert_xml_format(file_name):
+            self.errors.add(f"{file_name} is not supported, either fix it or submit another file")
+
     def enrich_data(self):
         self.customer_data
         vin = self.customer_data["Units"]["Auto"]["Vehicle"][0]["VinNumber"]
