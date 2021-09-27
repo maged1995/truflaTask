@@ -12,16 +12,23 @@ class CSVParser(ParserMain):
     def enrich_data(self, row):
         vin = row["vin_number"]
         model_year = row["model_year"]
-        response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
-        
-        if response.status_code == 200:
-            extra_info = response.json()['Results'][0]
-            self.vehicle_data.update({
-                "model": extra_info['Model'],
-                "manufacturer": extra_info['Manufacturer'],
-                "plant_country": extra_info['PlantCountry'],
-                "vehicle_type": extra_info['VehicleType'] 
-            }) 
+        try:
+            response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
+            
+            if response.status_code == 200:
+                extra_info = response.json()['Results'][0]
+                self.vehicle_data.update({
+                    "model": extra_info['Model'],
+                    "manufacturer": extra_info['Manufacturer'],
+                    "plant_country": extra_info['PlantCountry'],
+                    "vehicle_type": extra_info['VehicleType'] 
+                })
+            else:
+                self.exceptions.add({"vehicle_id": row["id"], "exception": "wrong or unavailable vehicle data"})
+        except requests.exceptions.ConnectionError:
+            self.exceptions.add('No Internet Connection for Data enrichment')
+        except:
+            self.exceptions.add('Unknown Error Occurred. Contact the developer')
 
     def pre_process(self):
         data1 = pd.read_csv(self.file_name)
@@ -70,6 +77,7 @@ class CSVParser(ParserMain):
                     ]
                 })
         self.json_data = json.dumps(json_res, indent=3, ensure_ascii=False)
+        if self.exceptions: print(self.exceptions)
         return json_res
 
     def parse_to_json(self):
