@@ -13,12 +13,13 @@ class XMLParser(ParserMain):
         response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
         extra_info = response.json()['Results'][0]
 
-        self.customer_data["Units"]["Auto"]["Vehicle"][0].update({
-            "model": extra_info['Model'],
-            "manufacturer": extra_info['Manufacturer'],
-            "plant_country": extra_info['PlantCountry'],
-            "vehicle_type": extra_info['VehicleType']
-        })
+        if response.status_code == 200:
+            self.customer_data["Units"]["Auto"]["Vehicle"][0].update({
+                "model": extra_info['Model'],
+                "manufacturer": extra_info['Manufacturer'],
+                "plant_country": extra_info['PlantCountry'],
+                "vehicle_type": extra_info['VehicleType']
+            })
 
     def pre_process(self):
         with open(self.file_name, mode='r') as xml_file:
