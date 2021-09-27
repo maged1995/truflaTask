@@ -3,7 +3,6 @@ from parser.xml_parser import XMLParser
 from parser.csv_parser import CSVParser
 from pymongo import MongoClient
 from decouple import config
-import urllib.parse
 import json
 
 def process(filenames, file_type):
@@ -11,9 +10,12 @@ def process(filenames, file_type):
         parser = XMLParser(filenames[0])
     elif file_type == 'csv':
         parser = CSVParser(filenames[0], filenames[1])
-    json_res = parser.pre_process()
-    parser.parse_to_json()
-    save_to_db(json_res, file_type)
+    if parser.errors: 
+        for e in parser.errors: print(e)
+    else:
+        json_res = parser.pre_process()
+        parser.parse_to_json()
+        save_to_db(json_res, file_type)
 
 def save_to_db(result, file_type):
     DB_NAME = config('DB_NAME')
