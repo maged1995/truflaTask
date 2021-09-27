@@ -4,6 +4,10 @@ class ParserMain:
     def __init__(self, file_name):
         self.file_name = file_name
         self.time_stamp = time.time()
+        self.exceptions = set()
+
+    def enrich_data(self, **kwargs):
+        pass
 
     def pre_process(self):
         pass

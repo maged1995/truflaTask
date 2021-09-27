@@ -1,12 +1,34 @@
 from posixpath import basename, splitext
 from .parser_main import ParserMain
 import pandas as pd
+import requests
 import json
 
 class CSVParser(ParserMain):
     def __init__(self, file_name, file_name2):
         ParserMain.__init__(self, file_name)
         self.file_name2 = file_name2
+
+    def enrich_data(self, row):
+        vin = row["vin_number"]
+        model_year = row["model_year"]
+        try:
+            response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
+            
+            if response.status_code == 200:
+                extra_info = response.json()['Results'][0]
+                self.vehicle_data.update({
+                    "model": extra_info['Model'],
+                    "manufacturer": extra_info['Manufacturer'],
+                    "plant_country": extra_info['PlantCountry'],
+                    "vehicle_type": extra_info['VehicleType'] 
+                })
+            else:
+                self.exceptions.add({"vehicle_id": row["id"], "exception": "wrong or unavailable vehicle data"})
+        except requests.exceptions.ConnectionError:
+            self.exceptions.add('No Internet Connection for Data enrichment')
+        except:
+            self.exceptions.add('Unknown Error Occurred. Contact the developer')
 
     def pre_process(self):
         data1 = pd.read_csv(self.file_name)
@@ -25,14 +47,20 @@ class CSVParser(ParserMain):
         for index, row in full_data.iterrows():
             # since "index" is the index of the records in the csv file, it is not recommended for use after sorting
             i += 1
+            
+            self.vehicle_data = {
+                "id": row["id"],
+                "make": row["make"],
+                "vin_number": row["vin_number"],
+                "model_year": row["model_year"],
+            }
+
+            self.enrich_data(row)
+
+            
             if prev_owner_id == row["owner_id"]:
                 nth_car += 1
-                json_res["transaction"][i-nth_car]["vehicles"].append({
-                    "id": row["id"],
-                    "make": row["make"],
-                    "vin_number": row["vin_number"],
-                    "model_year": row["model_year"]
-                })
+                json_res["transaction"][i-nth_car]["vehicles"].append(self.vehicle_data)
             else:
                 if nth_car > 0: nth_car = 0
                 prev_owner_id = row["owner_id"]
@@ -45,15 +73,11 @@ class CSVParser(ParserMain):
                         "phone": row['phone']
                     },
                     "vehicles": [
-                        {
-                            "id": row["id"],
-                            "make": row["make"],
-                            "vin_number": row["vin_number"],
-                            "model_year": row["model_year"]
-                        }
+                        self.vehicle_data
                     ]
                 })
         self.json_data = json.dumps(json_res, indent=3, ensure_ascii=False)
+        if self.exceptions: print(self.exceptions)
         return json_res
 
     def parse_to_json(self):
