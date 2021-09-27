@@ -18,7 +18,6 @@ def assert_csv_format(file_name):
         return False
 
 def assert_xml_format(file_name):
-    print(splitext(basename(file_name))[1])
     if splitext(basename(file_name))[1] == '.xml':
         try:
             xml.etree.ElementTree.parse(file_name)
