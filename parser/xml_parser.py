@@ -3,6 +3,7 @@ from .parser_main import ParserMain
 from .utils import without_keys
 import xmltodict
 import json
+import requests
 
 class XMLParser(ParserMain):
     def pre_process(self):
@@ -11,6 +12,17 @@ class XMLParser(ParserMain):
             xml_file.close()
             customer_data = data_dict["Insurance"]["Transaction"]["Customer"]
             customer_exclude_data = {"Units"}
+            
+            vin = customer_data["Units"]["Auto"]["Vehicle"][0]["VinNumber"]
+            model_year = customer_data["Units"]["Auto"]["Vehicle"][0]["ModelYear"]
+            response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
+            extra_info = response.json()['Results'][0]
+
+            customer_data["Units"]["Auto"]["Vehicle"][0]["model"] = extra_info['Model']
+            customer_data["Units"]["Auto"]["Vehicle"][0]["manufacturer"] = extra_info['Manufacturer']
+            customer_data["Units"]["Auto"]["Vehicle"][0]["plant_country"] = extra_info['PlantCountry']
+            customer_data["Units"]["Auto"]["Vehicle"][0]["vehicle_type"] = extra_info['VehicleType']
+
             json_res = {
                 "file_name": basename(self.file_name),
                 "transaction": [
