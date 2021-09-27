@@ -5,6 +5,7 @@ class ParserMain:
         self.file_name = file_name
         self.time_stamp = time.time()
         self.exceptions = set()
+        self.errors = set()
 
     def enrich_data(self, **kwargs):
         pass

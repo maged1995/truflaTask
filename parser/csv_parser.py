@@ -1,5 +1,6 @@
 from posixpath import basename, splitext
 from .parser_main import ParserMain
+from .utils import assert_csv_format
 import pandas as pd
 import requests
 import json
@@ -8,6 +9,10 @@ class CSVParser(ParserMain):
     def __init__(self, file_name, file_name2):
         ParserMain.__init__(self, file_name)
         self.file_name2 = file_name2
+        if not assert_csv_format(file_name):
+            self.errors.add(f"{file_name} is not supported, either fix it or submit another file")
+        if not  assert_csv_format(file_name2):
+            self.errors.add(f"{file_name2} is not supported, either fix it or submit another file")
 
     def enrich_data(self, row):
         vin = row["vin_number"]
