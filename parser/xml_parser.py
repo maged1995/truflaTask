@@ -22,6 +22,7 @@ class XMLParser(ParserMain):
                 ]
             }
             self.json_data = json.dumps(json_res, indent=3, ensure_ascii=False).replace("@", "")
+            return json_res
 
     def parse_to_json(self):
             new_file_name = splitext(basename(self.file_name))[0] + '.json'

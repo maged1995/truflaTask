@@ -23,7 +23,7 @@ class CSVParser(ParserMain):
         nth_car = 0
         i = -1
         for index, row in full_data.iterrows():
-            # since "index" is the index of the of the csv file, it is not recommended for use after sorting 
+            # since "index" is the index of the records in the csv file, it is not recommended for use after sorting
             i += 1
             if prev_owner_id == row["owner_id"]:
                 nth_car += 1
@@ -54,6 +54,7 @@ class CSVParser(ParserMain):
                     ]
                 })
         self.json_data = json.dumps(json_res, indent=3, ensure_ascii=False)
+        return json_res
 
     def parse_to_json(self):
         new_file_name = splitext(basename(self.file_name))[0] + '.json'
