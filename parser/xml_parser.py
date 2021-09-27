@@ -1,6 +1,6 @@
 from posixpath import basename, splitext
 from .parser_main import ParserMain
-from .utils import without_keys, assert_xml_format
+from .utils import without_keys, assert_xml_format, keys_snake
 import xmltodict
 import json
 import requests
@@ -13,8 +13,8 @@ class XMLParser(ParserMain):
 
     def enrich_data(self):
         self.customer_data
-        vin = self.customer_data["Units"]["Auto"]["Vehicle"][0]["VinNumber"]
-        model_year = self.customer_data["Units"]["Auto"]["Vehicle"][0]["ModelYear"]
+        vin = self.customer_data["units"]["auto"]["vehicle"][0]["vin_number"]
+        model_year = self.customer_data["units"]["auto"]["vehicle"][0]["model_year"]
 
         try:
             response = requests.get(f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json&modelyear={model_year}")
@@ -37,8 +37,9 @@ class XMLParser(ParserMain):
         with open(self.file_name, mode='r') as xml_file:
             data_dict = xmltodict.parse(xml_file.read(), encoding='utf-8')
             xml_file.close()
-            self.customer_data = data_dict["Insurance"]["Transaction"]["Customer"]
-            customer_exclude_data = {"Units"}
+            data_dict = keys_snake(data_dict)
+            self.customer_data = data_dict["insurance"]["transaction"]["customer"]
+            customer_exclude_data = {"units"}
             
             self.enrich_data()
 
@@ -46,9 +47,9 @@ class XMLParser(ParserMain):
                 "file_name": basename(self.file_name),
                 "transaction": [
                     {
-                        "date": data_dict["Insurance"]["Transaction"]["Date"],
+                        "date": data_dict["insurance"]["transaction"]["date"],
                         "customer": without_keys(self.customer_data, customer_exclude_data),
-                        "Vehicles": self.customer_data["Units"]["Auto"]["Vehicle"]
+                        "vehicles": self.customer_data["units"]["auto"]["vehicle"]
                     }
                 ]
             }
