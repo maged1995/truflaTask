@@ -5,17 +5,21 @@ from pymongo import MongoClient
 from decouple import config
 import json
 
-def process(filenames, file_type):
+def process(filenames, file_type, will_db, will_l):
+    if not (will_db or will_l):
+        return False
     if file_type == 'xml':
         parser = XMLParser(filenames[0])
     elif file_type == 'csv':
         parser = CSVParser(filenames[0], filenames[1])
+
     if parser.errors: 
         for e in parser.errors: print(e)
     else:
         json_res = parser.pre_process()
-        parser.parse_to_json()
-        save_to_db(json_res, file_type)
+        if will_l: parser.parse_to_json()
+        if will_db: save_to_db(json_res, file_type)
+    return True
 
 def save_to_db(result, file_type):
     DB_NAME = config('DB_NAME')
